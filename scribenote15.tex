@@ -1,0 +1,159 @@
+
+\documentclass[11pt]{article}
+\usepackage{latexsym}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{amsthm}
+\usepackage{epsfig}
+\usepackage{graphicx}
+\usepackage{algorithm}
+\usepackage{algorithmic}
+
+\newcommand{\handout}[5]{
+  \noindent
+  \begin{center}
+  \framebox{
+    \vbox{
+      \hbox to 5.78in { {\bf ICS 443: Parallel Algorithms} \hfill #2 }
+      \vspace{4mm}
+      \hbox to 5.78in { {\Large \hfill #5  \hfill} }
+      \vspace{2mm}
+      \hbox to 5.78in { {\em #3 \hfill #4} }
+    }
+  }
+  \end{center}
+  \vspace*{4mm}
+}
+
+\newcommand{\lecture}[4]{\handout{#1}{#2}{#3}{Scribe: #4}{Lecture #1}}
+
+\newtheorem{theorem}{Theorem}
+\newtheorem{corollary}[theorem]{Corollary}
+\newtheorem{lemma}[theorem]{Lemma}
+\newtheorem{observation}[theorem]{Observation}
+\newtheorem{proposition}[theorem]{Proposition}
+\newtheorem{definition}[theorem]{Definition}
+\newtheorem{claim}[theorem]{Claim}
+\newtheorem{fact}[theorem]{Fact}
+\newtheorem{assumption}[theorem]{Assumption}
+
+% 1-inch margins, from fullpage.sty by H.Partl, Version 2, Dec. 15, 1988.
+\topmargin 0pt
+\advance \topmargin by -\headheight
+\advance \topmargin by -\headsep
+\textheight 8.9in
+\oddsidemargin 0pt
+\evensidemargin \oddsidemargin
+\marginparwidth 0.5in
+\textwidth 6.5in
+
+\parindent 0in
+\parskip 1.5ex
+%\renewcommand{\baselinestretch}{1.25}
+
+\begin{document}
+
+\lecture{15 --- October 11, 2017}{Fall 2017}{Prof.\ Nodari Sitchinava}{Jipeng Huang, Christopher Yeager}
+
+\section{Homework 2 Solutions}
+
+\subsection{Problem 1}
+
+\begin{algorithm}
+\begin{algorithmic}
+\FOR{$i = 1~to~p {\bf~in~parallel}$}
+    \FOR{$j = (i-1)\frac{n}{p}+2~to~i\frac{n}{p}$}
+        \STATE $A[i] = A[i-1] + A[i]$
+    \ENDFOR
+\ENDFOR
+\FOR{$i = 1~to~p {\bf~in~parallel}$}
+    \STATE $B[i] = A[i * \frac{n}{p}]$
+    \STATE $prefix-sum(B)$
+\ENDFOR
+\FOR{$i = 2~to~p {\bf~in~parallel}$}
+    \FOR{$j = (i-1)\frac{n}{p}+1~to~i\frac{n}{p}$}
+        \STATE $A[j] = B[i-1] + A[j]$
+    \ENDFOR
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+
+\subsection{Problem 2}
+As we know, the total coins are $(C_1 +C_2 +...+C_n )$ and there are m robbers which each robber share equally. Therefore, each robber should have total coins divided by m robbers.  We allocate an array $A[n]$ to calculate the prefix-sum of coins so the $share = \lfloor \frac{A[n]}{m} \rfloo$ and $ith$ robber will take $(i-1) * share + 1$ to $i * share$ coins. 
+
+\begin{algorithm}[H]
+\caption{Split-loot(C, n , m)}
+\begin{algorithmic}
+\STATE $A[0...n]$
+\STATE $C[1...n]$
+\FOR{$ i = 1~to~n {\bf~in~parallel}$}
+    \STATE $A[i] = C[i]$
+\ENDFOR
+\STATE $prefix-sum(A)$
+\STATE $share = \lfloor \frac{A[n]}{m} \rfloo$
+\STATE  $A[0] = 0$
+\FOR{$ j = 1~to~m {\bf~in~parallel}$}
+    \STATE $output[j].l = predecessor((j-1)*share+1,A)$
+    \STATE $output[j].r = predecessor(j*share+1,A)$
+\ENDFOR
+\IF{$A[output[j].l != (j-1)*share+1]$}
+    \STATE $output[j].l ++$
+\ENDIF
+\IF{$A[output[j].r != (j-1)*share]$}
+    \STATE $output[j].r ++$
+\ENDIF
+\FOR{$ j = 1~to~m {\bf~in~parallel}$}
+    \STATE $output[j].t_l = min{share, A[output[j].l]-(j-1)*share}$
+    \IF{$output[j].t_l == share$}
+        \STATE $output[j].r ++$
+        \STATE $output[j].t_r = 0$
+    \ELSE
+        \STATE $output[j].t_r = j * share - A[output[j].r-1]$
+    \ENDIF
+\ENDFOR
+\end{algorithmic}
+\end{algorithm}
+We analyzed this algorithm that first for loop takes constant time and $O(n)$ work. The $prefix-sum(A)$ we talked in previous class and it takes $O(\log n)$ time and $O(n)$ work.
+Each $predecessor$ function takes $O(1)$ time and $O(\log n)$ work.  Therefore, the total time is $O(\log n)$ and work is $O(n)$ work.
+
+\subsection{Problem 3}
+We assume $a<b<c$ then we got:
+$min (min (a,b),c) = min(a,c) = a$ and
+$min (min a,(b,c)) = min(a,b) = a$.\\
+Assume $a<c<b$ and we got:
+$min (min (a,b),c) = min(a,c) = a$ and
+$min (min a,(b,c)) = min(a,c) = a$.\\
+Assume $b<a<c$ and we got:
+$min (min (a,b),c) = min(b,c) = b$ and
+$min (min a,(b,c)) = min(a,b) = b$.\\
+Assume $b<c<a$ and we got:
+$min (min (a,b),c) = min(b,c) = b$ and
+$min (min a,(b,c)) = min(a,b) = b$.\\
+Assume $c<a<b$ and we got:
+$min (min (a,b),c) = min(a,c) = c$ and
+$min (min a,(b,c)) = min(a,c) = c$.\\
+Assume $c<b<a$ and we got:
+$min (min (a,b),c) = min(b,c) = c$ and
+$min (min a,(b,c)) = min(a,c) = c$.\\
+Therefore, the min is associative operator.
+since $min(I_{min},x) = x$, so its identity is $I_{min} = \infty$
+
+\begin{algorithm}
+\caption{Minima(A[0...n-1])}
+\begin{algorithmic}
+\IF{$n == 0$}
+    \STATE $return A[0]$
+\ELSE
+    \FOR{$i =0~to~\frac{n}{2}-1 {\bf~in~parallel}$}
+        \STATE $B[i] = min(A[2i], A[2i+1])$
+    \ENDFOR
+    \STATE $Minima(B[0...\frac{n}{2}-1])$
+\ENDIF
+
+\end{algorithmic}
+\end{algorithm}
+
+%\bibliography{mybib}
+\bibliographystyle{alpha}
+
+\end{document}
